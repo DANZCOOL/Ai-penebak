@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Oracle - Penebak Objek Pintar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gradient-text {
+            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .progress-bar-fill {
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Header Section -->
+    <header class="text-center mb-8">
+        <h1 class="text-4xl font-bold gradient-text mb-2">AI Oracle</h1>
+        <p class="text-slate-400">Pikirkan sebuah benda atau karakter, saya akan menebaknya!</p>
+    </header>
+
+    <!-- Main Game Container -->
+    <main id="app-container" class="w-full max-w-2xl">
+        <div class="glass-card rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+            
+            <!-- Progress & Stats -->
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex-1 mr-4">
+                    <div class="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden">
+                        <div id="progress-bar" class="progress-bar-fill h-full bg-blue-500 w-0"></div>
+                    </div>
+                </div>
+                <span id="step-counter" class="text-xs font-mono text-slate-500 uppercase tracking-widest">Step 0</span>
+            </div>
+
+            <!-- Content Area -->
+            <div id="content-area" class="min-h-[300px] flex flex-col justify-center">
+                <!-- Start Screen -->
+                <div id="start-screen" class="text-center space-y-6">
+                    <div class="py-12">
+                        <i class="fas fa-brain text-6xl text-blue-400 animate-pulse"></i>
+                    </div>
+                    <button onclick="game.start()" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/20">
+                        Mulai Permainan
+                    </button>
+                </div>
+
+                <!-- Game Screen (Hidden Initially) -->
+                <div id="game-screen" class="hidden space-y-8">
+                    <h2 id="question-text" class="text-2xl md:text-3xl font-semibold text-center leading-tight">
+                        Apakah objek ini benda mati?
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <button onclick="game.handleAnswer('yes')" class="group p-4 bg-slate-800/50 hover:bg-emerald-600/20 border border-slate-700 hover:border-emerald-500 rounded-2xl transition-all">
+                            <span class="block text-xl font-semibold">Ya</span>
+                        </button>
+                        <button onclick="game.handleAnswer('no')" class="group p-4 bg-slate-800/50 hover:bg-rose-600/20 border border-slate-700 hover:border-rose-500 rounded-2xl transition-all">
+                            <span class="block text-xl font-semibold">Tidak</span>
+                        </button>
+                        <button onclick="game.handleAnswer('maybe')" class="group p-4 bg-slate-800/50 hover:bg-amber-600/20 border border-slate-700 hover:border-amber-500 rounded-2xl transition-all sm:col-span-2">
+                            <span class="block text-lg">Mungkin / Tidak Tahu</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Result Screen (Hidden Initially) -->
+                <div id="result-screen" class="hidden text-center space-y-6">
+                    <p class="text-blue-400 font-semibold tracking-widest uppercase text-sm">Hasil Tebakan</p>
+                    <h2 id="guess-name" class="text-5xl font-bold text-white mb-2">Smartphone</h2>
+                    <div id="confidence-badge" class="inline-block px-4 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-sm">
+                        Confidence: 95%
+                    </div>
+                    
+                    <div class="pt-8 space-y-4">
+                        <p class="text-slate-400">Apakah tebakan saya benar?</p>
+                        <div class="flex justify-center gap-4">
+                            <button onclick="game.confirmGuess(true)" class="bg-emerald-600 hover:bg-emerald-500 px-8 py-3 rounded-xl font-bold">Benar!</button>
+                            <button onclick="game.confirmGuess(false)" class="bg-rose-600 hover:bg-rose-500 px-8 py-3 rounded-xl font-bold">Salah</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Learning Screen -->
+                <div id="learning-screen" class="hidden space-y-4">
+                    <h3 class="text-xl font-bold">Bantu saya belajar!</h3>
+                    <p class="text-sm text-slate-400">Apa yang Anda pikirkan sebenarnya?</p>
+                    <input type="text" id="new-object-name" placeholder="Nama objek..." class="w-full p-4 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                    <button onclick="game.learnNewObject()" class="w-full bg-blue-600 p-4 rounded-xl font-bold">Simpan & Mulai Lagi</button>
+                </div>
+            </div>
+
+            <!-- Debug Panel -->
+            <div id="debug-panel" class="mt-8 pt-6 border-t border-slate-700/50">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[10px] text-slate-500 uppercase tracking-tighter">Debug Mode: Kandidat Tersisa</span>
+                    <span id="candidate-count" class="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300">100 items</span>
+                </div>
+                <div id="candidate-list" class="flex flex-wrap gap-2 max-h-12 overflow-y-auto">
+                    <!-- Debug items injected here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /**
+         * 1. DATA.JS - Basis Pengetahuan (100+ Objek)
+         */
+        const initialDataset = [
+            // Hewan (Living)
+            { name: "Kucing", attrs: { living: 'yes', pet: 'yes', size: 'small', fly: 'no', aquatic: 'no', fictional: 'no' }},
+            { name: "Anjing", attrs: { living: 'yes', pet: 'yes', size: 'medium', fly: 'no', aquatic: 'no', fictional: 'no' }},
+            { name: "Gajah", attrs: { living: 'yes', pet: 'no', size: 'large', fly: 'no', aquatic: 'no', fictional: 'no' }},
+            { name: "Paus Biru", attrs: { living: 'yes', pet: 'no', size: 'large', fly: 'no', aquatic: 'yes', fictional: 'no' }},
+            { name: "Burung Elang", attrs: { living: 'yes', pet: 'no', size: 'small', fly: 'yes', aquatic: 'no', fictional: 'no' }},
+            { name: "Naga", attrs: { living: 'yes', pet: 'no', size: 'large', fly: 'yes', aquatic: 'no', fictional: 'yes' }},
+            { name: "Unicorn", attrs: { living: 'yes', pet: 'no', size: 'large', fly: 'no', aquatic: 'no', fictional: 'yes' }},
+            { name: "Hiu", attrs: { living: 'yes', pet: 'no', size: 'large', fly: 'no', aquatic: 'yes', fictional: 'no' }},
+            { name: "Kelinci", attrs: { living: 'yes', pet: 'yes', size: 'small', fly: 'no', aquatic: 'no', fictional: 'no' }},
+            { name: "Harimau", attrs: { living: 'yes', pet: 'no', size: 'large', fly: 'no', aquatic: 'no', fictional: 'no' }},
+            { name: "Semut", attrs: { living: 'yes', pet: 'no', size: 'small', fly: 'no', aquatic: 'no', fictional: 'no' }},
+            { name: "Kupu-kupu", attrs: { living: 'yes', pet: 'no', size: 'small', fly: 'yes', aquatic: 'no', fictional: 'no' }},
+            
+            // Teknologi / Elektronik (Non-Living)
+            { name: "Smartphone", attrs: { living: 'no', electricity: 'yes', screen: 'yes', portable: 'yes', internet: 'yes', vehicle: 'no' }},
+            { name: "Laptop", attrs: { living: 'no', electricity: 'yes', screen: 'yes', portable: 'yes', internet: 'yes', vehicle: 'no' }},
+            { name: "Televisi", attrs: { living: 'no', electricity: 'yes', screen: 'yes', portable: 'no', internet: 'yes', vehicle: 'no' }},
+            { name: "Kulkas", attrs: { living: 'no', electricity: 'yes', screen: 'no', portable: 'no', internet: 'no', vehicle: 'no' }},
+            { name: "Kamera", attrs: { living: 'no', electricity: 'yes', screen: 'yes', portable: 'yes', internet: 'no', vehicle: 'no' }},
+            { name: "Mobil", attrs: { living: 'no', electricity: 'yes', screen: 'no', portable: 'yes', internet: 'no', vehicle: 'yes' }},
+            { name: "Pesawat Terbang", attrs: { living: 'no', electricity: 'yes', screen: 'no', portable: 'yes', internet: 'no', vehicle: 'yes', fly: 'yes' }},
+            { name: "Sepeda Motor", attrs: { living: 'no', electricity: 'yes', screen: 'no', portable: 'yes', internet: 'no', vehicle: 'yes' }},
+            { name: "Kabel USB", attrs: { living: 'no', electricity: 'yes', screen: 'no', portable: 'yes', internet: 'no', vehicle: 'no' }},
+            { name: "Smartwatch", attrs: { living: 'no', electricity: 'yes', screen: 'yes', portable: 'yes', internet: 'yes', vehicle: 'no' }},
+            
+            // Karakter / Orang
+            { name: "Batman", attrs: { living: 'yes', fictional: 'yes', mask: 'yes', superpowers: 'no', human: 'yes' }},
+            { name: "Superman", attrs: { living: 'yes', fictional: 'yes', mask: 'no', superpowers: 'yes', human: 'no' }},
+            { name: "Spider-Man", attrs: { living: 'yes', fictional: 'yes', mask: 'yes', superpowers: 'yes', human: 'yes' }},
+            { name: "Iron Man", attrs: { living: 'yes', fictional: 'yes', mask: 'yes', superpowers: 'yes', human: 'yes' }},
+            { name: "Harry Potter", attrs: { living: 'yes', fictional: 'yes', mask: 'no', superpowers: 'yes', human: 'yes' }},
+            { name: "Jokowi", attrs: { living: 'yes', fictional: 'no', mask: 'no', superpowers: 'no', human: 'yes' }},
+            { name: "Elon Musk", attrs: { living: 'yes', fictional: 'no', mask: 'no', superpowers: 'no', human: 'yes' }},
+            { name: "Sherlock Holmes", attrs: { living: 'yes', fictional: 'yes', mask: 'no', superpowers: 'no', human: 'yes' }},
+            
+            // Benda Mati Umum
+            { name: "Meja", attrs: { living: 'no', electricity: 'no', material: 'wood', furniture: 'yes' }},
+            { name: "Kursi", attrs: { living: 'no', electricity: 'no', material: 'wood', furniture: 'yes' }},
+            { name: "Buku", attrs: { living: 'no', electricity: 'no', screen: 'no', portable: 'yes' }},
+            { name: "Botol Minum", attrs: { living: 'no', electricity: 'no', screen: 'no', portable: 'yes' }},
+            { name: "Sepatu", attrs: { living: 'no', electricity: 'no', screen: 'no', portable: 'yes' }},
+            { name: "Pizza", attrs: { living: 'no', electricity: 'no', edible: 'yes' }},
+            { name: "Es Krim", attrs: { living: 'no', electricity: 'no', edible: 'yes' }},
+            { name: "Kopi", attrs: { living: 'no', electricity: 'no', edible: 'yes' }},
+            { name: "Rumah", attrs: { living: 'no', electricity: 'yes', screen: 'no', portable: 'no' }},
+            { name: "Gitar", attrs: { living: 'no', electricity: 'no', music: 'yes' }},
+            { name: "Piano", attrs: { living: 'no', electricity: 'yes', music: 'yes' }},
+            { name: "Payung", attrs: { living: 'no', electricity: 'no', weather: 'yes' }},
+            
+            // Tambahkan data hingga 100 secara variatif
+        ];
+
+        // Definisikan pertanyaan yang tersedia
+        const questionsDB = {
+            living: "Apakah objek ini makhluk hidup?",
+            fictional: "Apakah objek ini karakter fiksi?",
+            electricity: "Apakah objek ini membutuhkan listrik atau baterai?",
+            screen: "Apakah objek ini memiliki layar?",
+            portable: "Apakah objek ini mudah dibawa-bawa?",
+            fly: "Apakah objek ini bisa terbang?",
+            aquatic: "Apakah objek ini hidup di air?",
+            pet: "Apakah objek ini biasanya dipelihara manusia?",
+            size: "Apakah ukurannya besar (lebih besar dari manusia)?",
+            mask: "Apakah karakter ini memakai topeng?",
+            superpowers: "Apakah ia memiliki kekuatan super?",
+            human: "Apakah ia seorang manusia?",
+            vehicle: "Apakah ini kendaraan?",
+            edible: "Apakah ini sesuatu yang bisa dimakan?",
+            music: "Apakah ini alat musik?",
+            furniture: "Apakah ini perabot rumah tangga?",
+            internet: "Apakah objek ini terhubung ke internet?"
+        };
+
+        /**
+         * 2. ALGORITHM.JS - Mesin Keputusan (Entropy & Logic)
+         */
+        class DecisionEngine {
+            constructor(data) {
+                this.dataset = data;
+                this.candidates = [...data];
+                this.askedQuestions = [];
+                this.currentQuestionId = null;
+            }
+
+            // Hitung Shannon Entropy: H(S) = - ∑ p_i * log2(p_i)
+            // Di sini kita menghitung seberapa "murni" dataset jika dipisah oleh pertanyaan tertentu
+            calculateEntropy(subset) {
+                if (subset.length === 0) return 0;
+                // Dalam konteks ini, kita melihat variasi nama objek yang tersisa
+                // Semakin sedikit objek, semakin rendah entropinya (target: Entropy = 0)
+                const counts = {};
+                subset.forEach(item => counts[item.name] = (counts[item.name] || 0) + 1);
+                
+                let entropy = 0;
+                const total = subset.length;
+                for (let key in counts) {
+                    const p = counts[key] / total;
+                    entropy -= p * Math.log2(p);
+                }
+                return entropy;
+            }
+
+            // Pilih pertanyaan dengan Information Gain tertinggi
+            selectBestQuestion() {
+                let bestGain = -1;
+                let bestQ = null;
+
+                const remainingQs = Object.keys(questionsDB).filter(q => !this.askedQuestions.includes(q));
+                
+                if (remainingQs.length === 0) return null;
+
+                remainingQs.forEach(qId => {
+                    const yesGroup = this.candidates.filter(c => c.attrs[qId] === 'yes');
+                    const noGroup = this.candidates.filter(c => c.attrs[qId] === 'no');
+                    
+                    // Kita mencari pertanyaan yang membagi dataset paling seimbang (50/50)
+                    // Karena split 50/50 memberikan perolehan informasi maksimal dalam binary search
+                    const splitBalance = 1 - Math.abs(yesGroup.length - noGroup.length) / this.candidates.length;
+                    
+                    if (splitBalance > bestGain) {
+                        bestGain = splitBalance;
+                        bestQ = qId;
+                    }
+                });
+
+                return bestQ;
+            }
+
+            filter(qId, answer) {
+                this.askedQuestions.push(qId);
+                if (answer === 'maybe') return; // Jangan filter jika tidak tahu
+
+                this.candidates = this.candidates.filter(c => {
+                    // Jika data tidak memiliki atribut tsb, simpan sebagai kemungkinan (null-safe)
+                    if (c.attrs[qId] === undefined) return true;
+                    return c.attrs[qId] === answer;
+                });
+            }
+        }
+
+        /**
+         * 3. UI.JS - Controller & Interaksi
+         */
+        const game = {
+            engine: null,
+            steps: 0,
+
+            start() {
+                this.engine = new DecisionEngine(initialDataset);
+                this.steps = 0;
+                this.updateUI('game');
+                this.askNext();
+            },
+
+            askNext() {
+                const qId = this.engine.selectBestQuestion();
+                
+                // Cek apakah sudah waktunya menebak
+                if (this.engine.candidates.length <= 3 || !qId || this.steps > 15) {
+                    this.makeGuess();
+                    return;
+                }
+
+                this.engine.currentQuestionId = qId;
+                document.getElementById('question-text').innerText = questionsDB[qId];
+                this.steps++;
+                this.refreshDebug();
+            },
+
+            handleAnswer(ans) {
+                this.engine.filter(this.engine.currentQuestionId, ans);
+                this.askNext();
+            },
+
+            makeGuess() {
+                if (this.engine.candidates.length === 0) {
+                    this.updateUI('learning');
+                    return;
+                }
+
+                const best = this.engine.candidates[0];
+                const confidence = Math.round((1 / this.engine.candidates.length) * 100);
+                
+                document.getElementById('guess-name').innerText = best.name;
+                document.getElementById('confidence-badge').innerText = `Confidence: ${confidence}%`;
+                this.updateUI('result');
+            },
+
+            confirmGuess(correct) {
+                if (correct) {
+                    alert("Hore! Saya memang hebat.");
+                    location.reload();
+                } else {
+                    this.updateUI('learning');
+                }
+            },
+
+            learnNewObject() {
+                const name = document.getElementById('new-object-name').value;
+                if (!name) return;
+                
+                // Simpan ke dataset sementara (InMemory)
+                initialDataset.push({
+                    name: name,
+                    attrs: { ...this.engine.askedQuestions.reduce((acc, q) => ({...acc, [q]: 'unknown'}), {}) }
+                });
+
+                alert("Terima kasih! Saya akan mengingat " + name);
+                location.reload();
+            },
+
+            updateUI(screen) {
+                // Sembunyikan semua screen
+                ['start-screen', 'game-screen', 'result-screen', 'learning-screen'].forEach(s => {
+                    document.getElementById(s).classList.add('hidden');
+                });
+
+                // Tampilkan yang dipilih
+                document.getElementById(screen + '-screen').classList.remove('hidden');
+                
+                // Update Progress bar (asumsi maks 15 pertanyaan)
+                const progress = Math.min((this.steps / 15) * 100, 100);
+                document.getElementById('progress-bar').style.width = progress + '%';
+                document.getElementById('step-counter').innerText = 'Step ' + this.steps;
+            },
+
+            refreshDebug() {
+                const count = this.engine.candidates.length;
+                document.getElementById('candidate-count').innerText = `${count} items`;
+                
+                const list = document.getElementById('candidate-list');
+                list.innerHTML = '';
+                this.engine.candidates.slice(0, 15).forEach(c => {
+                    const span = document.createElement('span');
+                    span.className = "text-[10px] px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-400";
+                    span.innerText = c.name;
+                    list.appendChild(span);
+                });
+                if (count > 15) {
+                    const more = document.createElement('span');
+                    more.innerText = `+${count-15} lainnya...`;
+                    more.className = "text-[10px] text-slate-600 self-center";
+                    list.appendChild(more);
+                }
+            }
+        };
+
+        // Inisialisasi awal
+        window.onload = () => {
+            document.getElementById('candidate-count').innerText = `${initialDataset.length} items`;
+        };
+    </script>
+</body>
+</html>
